@@ -14,7 +14,8 @@ export const cleanEmail = value => (typeof value === 'string' && /^[^\s@]{1,64}@
 // Where sign-in links point. Defaults to the Vite dev server; set HUNCH_PUBLIC_URL when serving elsewhere.
 const publicUrl = req => process.env.HUNCH_PUBLIC_URL || (/^https?:\/\/[\w.:-]+$/.test(req.headers.origin ?? '') ? req.headers.origin : 'http://localhost:5173');
 
-const prototypeOpen = () => process.env.NODE_ENV !== 'production' && process.env.HUNCH_PROTOTYPE !== 'off';
+// No-login company picker for the prototype. Off in production unless HUNCH_PROTOTYPE=on; HUNCH_PROTOTYPE=off disables it anywhere.
+const prototypeOpen = () => process.env.HUNCH_PROTOTYPE === 'on' || (process.env.NODE_ENV !== 'production' && process.env.HUNCH_PROTOTYPE !== 'off');
 
 async function companyUser(db, req) {
   const session = verifySession(bearer(req), 'company');

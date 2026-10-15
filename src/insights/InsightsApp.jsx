@@ -52,7 +52,7 @@ function SignIn({ onSignedIn }) {
     {companies && !companies.length && <div className="hi-empty"><h2>No clients yet.</h2><p>Load the demo client with <code>npm run seed</code>, then refresh.</p></div>}
     {companies?.length > 0 && <div className="hi-studies">{companies.map(c => <button key={c.id} className="hi-study" disabled={busy} onClick={() => open(c.id)}>
       <span className="hi-eyebrow">CLIENT</span><strong>{c.name}</strong><span className="hi-muted">Open their studies →</span></button>)}</div>}
-    <p className="hi-small hi-muted">Prototype mode: no sign-in. This shortcut is switched off when the server runs in production.</p>
+    <p className="hi-small hi-muted">Prototype mode: no sign-in. Turn this off before real clients use it (HUNCH_PROTOTYPE=off).</p>
   </main>;
 }
 
