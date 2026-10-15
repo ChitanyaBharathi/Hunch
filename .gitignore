@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.game-data/
+.browser-check/
+.env
+.env.*
+.playwright-mcp/
+output/
+.claude/settings.local.json
+*.log
+*.db
+*.sqlite*
