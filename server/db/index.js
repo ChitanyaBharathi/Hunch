@@ -58,5 +58,6 @@ export async function openDb(target = ':memory:', { seed = true } = {}) {
   return db;
 }
 
-// GAME_EPHEMERAL (tests) always wins, so a DATABASE_URL in .env can never point a test run at the real database.
-export const defaultTarget = () => (process.env.GAME_EPHEMERAL === '1' ? ':memory:' : process.env.DATABASE_URL || process.env.HUNCH_DB || DEFAULT_DB_DIR);
+// Tests always win over .env: GAME_EPHEMERAL (in-memory) or HUNCH_DB (a throwaway folder) beat DATABASE_URL,
+// so a test run can never touch the real database.
+export const defaultTarget = () => (process.env.GAME_EPHEMERAL === '1' ? ':memory:' : process.env.HUNCH_DB || process.env.DATABASE_URL || DEFAULT_DB_DIR);
