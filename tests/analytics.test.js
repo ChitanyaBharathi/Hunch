@@ -10,7 +10,7 @@ import { PRODUCTS } from '../server/products.js';
 
 const row = (guess, extra = {}) => ({ respondentId: `r${guess}`, productId: 'p', category: 'Tech', guessCents: guess, actualCents: 10000, maxPayCents: null, tooCheapCents: null, msToAnswer: null, ...extra });
 
-test('log bias treats double and half as equally far off, and reads back as a percentage', () => {
+test('log bias treats double and half as equally far off, and reads back as a percentage', async () => {
   assert.equal(Math.abs(logBias(200, 100)), Math.abs(logBias(50, 100)));
   assert.ok(Math.abs(pctFromLog(Math.log(0.78)) - -0.22) < 1e-12);
   assert.equal(pctFromLog(-Infinity), -1);
@@ -18,7 +18,7 @@ test('log bias treats double and half as equally far off, and reads back as a pe
   assert.ok(Math.abs(pearson([1, 2, 3], [2, 4, 6]) - 1) < 1e-12);
 });
 
-test('threshold suppression: products need 5, segments need 10, and suppressed means no figures at all', () => {
+test('threshold suppression: products need 5, segments need 10, and suppressed means no figures at all', async () => {
   const four = [8000, 9000, 10000, 11000].map(g => row(g));
   const p4 = productPerception(four);
   assert.deepEqual(p4, { suppressed: true, n: 4, minimum: 5 });
@@ -39,28 +39,28 @@ test('threshold suppression: products need 5, segments need 10, and suppressed m
   assert.ok(!reportCsv(report).includes('8000') && !reportCsv(report).includes('80.00'));
 });
 
-test('perception and value gaps use medians on the log scale; zero max-pay means "would not buy"', () => {
+test('perception and value gaps use medians on the log scale; zero max-pay means "would not buy"', async () => {
   const rows = [5000, 7000, 8000, 9000, 20000].map((g, i) => row(g, { maxPayCents: [0, 0, 0, 12000, 15000][i] }));
   assert.ok(Math.abs(perceptionGap(rows).pct - -0.2) < 1e-9);
   const v = valueGap(rows);
   assert.equal(v.pct, -1); assert.equal(v.medianMaxPayCents, 0);
 });
 
-test('bootstrap interval is reproducible and brackets the median', () => {
+test('bootstrap interval is reproducible and brackets the median', async () => {
   const values = Array.from({ length: 60 }, (_, i) => 1000 + i * 37);
   const a = bootstrapMedianCI(values, { seed: 3 });
   assert.deepEqual(a, bootstrapMedianCI(values, { seed: 3 }));
   assert.ok(a[0] <= median(values) && median(values) <= a[1]);
 });
 
-test('quantile dots never represent fewer than three guesses each', () => {
+test('quantile dots never represent fewer than three guesses each', async () => {
   for (const n of [5, 9, 30, 151, 400]) {
     const dots = quantileDots(Array.from({ length: n }, (_, i) => 1000 + i));
     assert.ok(dots.length <= Math.max(1, Math.floor(n / 3)) && dots.length <= 50);
   }
 });
 
-test('sensitivity curves: monotone shapes and a balance point between the medians', () => {
+test('sensitivity curves: monotone shapes and a balance point between the medians', async () => {
   const rows = Array.from({ length: 40 }, (_, i) => row(8000 + i * 100, { tooCheapCents: 3000 + i * 50, maxPayCents: 7000 + i * 150 }));
   const s = sensitivityCurves(rows);
   assert.match(s.label, /3-question variant/);
@@ -73,7 +73,7 @@ test('sensitivity curves: monotone shapes and a balance point between the median
   assert.ok(sensitivityCurves(rows.slice(0, 4)).suppressed);
 });
 
-test('quadrants and crowd accuracy', () => {
+test('quadrants and crowd accuracy', async () => {
   assert.equal(quadrant(-0.2, 0.1), 'Hidden Gem'); assert.equal(quadrant(-0.2, -0.1), 'Sticker Shock');
   assert.equal(quadrant(0.2, -0.1), 'Overestimated'); assert.equal(quadrant(0.2, 0.1), 'Fair Value');
   const p = productPerception([5000, 9000, 10000, 11000, 20000].map(g => row(g)));
@@ -81,7 +81,7 @@ test('quadrants and crowd accuracy', () => {
   assert.ok(p.crowd.averageIndividualErrorPct > 0.2);
 });
 
-test('price twins: correlated bias vectors match, too little overlap does not', () => {
+test('price twins: correlated bias vectors match, too little overlap does not', async () => {
   assert.ok(similarity({ 1: 0.1, 2: -0.2, 3: 0.3, 4: 0, 5: -0.1 }, { 1: 0.2, 2: -0.1, 3: 0.4, 4: 0.1, 5: 0 }) > 0.99);
   assert.ok(Number.isNaN(similarity({ 1: 0.1, 2: 0.2 }, { 1: 0.1, 2: 0.2 })));
   const twin = priceTwin('a', [
@@ -92,7 +92,7 @@ test('price twins: correlated bias vectors match, too little overlap does not', 
   assert.deepEqual(twin, { name: 'Hari', match: 1 });
 });
 
-test('full report on synthetic data: every published figure carries n and no row-level data leaves', () => {
+test('full report on synthetic data: every published figure carries n and no row-level data leaves', async () => {
   const products = PRODUCTS.map(p => ({ id: p.id, name: p.title, category: p.category, priceCents: Math.round(p.price * 100) }));
   const { responses } = generateSynthetic({ products, respondents: 120, seed: 5 });
   const report = buildReport({ products: products.slice(0, 5), rows: responses.filter(r => products.slice(0, 5).some(p => p.id === r.productId)), personaRows: responses, anchorRows: responses, categories: [...new Set(products.map(p => p.category))] });

@@ -21,18 +21,18 @@ const legacy = {
   },
 };
 
-test('rooms.json import keeps sessions working, game state intact and re-asks old consents', () => {
-  const db = freshDb();
-  const summary = importRooms(db, legacy);
+test('rooms.json import keeps sessions working, game state intact and re-asks old consents', async () => {
+  const db = await freshDb();
+  const summary = await importRooms(db, legacy);
   assert.deepEqual({ rooms: summary.rooms, players: summary.players, guesses: summary.guesses, respondents: summary.respondents, responses: summary.responses },
     { rooms: 1, players: 2, guesses: 2, respondents: 1, responses: 1 });
-  const { room, player } = authenticate(db, 'ABC123', 'a'.repeat(48));
-  const snap = snapshot(db, room, player);
+  const { room, player } = await authenticate(db, 'ABC123', 'a'.repeat(48));
+  const snap = await snapshot(db, room, player);
   assert.equal(snap.roundIndex, 1); assert.equal(snap.history.length, 1);
   assert.equal(snap.history[0].rankings[0].name, 'Guest'); // S$500 is nearer S$499 than S$450
   assert.equal(snap.research.status, 'outdated');
-  const response = db.prepare('SELECT * FROM responses').get();
+  const response = await db.prepare('SELECT * FROM responses').get();
   assert.equal(response.guess_cents, 45000); assert.equal(response.max_pay_cents, 40000); assert.equal(response.prev_product_price_cents, null);
-  assert.equal(importRooms(db, legacy).skipped, 1, 'Re-running skips rooms already imported');
-  assert.equal(db.prepare('SELECT COUNT(*) FROM rooms').pluck().get(), 1);
+  assert.equal((await importRooms(db, legacy)).skipped, 1, 'Re-running skips rooms already imported');
+  assert.equal(await db.prepare('SELECT COUNT(*) FROM rooms').pluck().get(), 1);
 });

@@ -4,36 +4,36 @@ import { createRoom, joinRoom, findRoom } from '../server/game.js';
 import { dailyProducts, selectProducts } from '../server/roundSelection.js';
 import { freshDb, act, view, priceOf, roundIndex, CONSENT } from './helpers.js';
 
-test('daily challenge: same 5 products for everyone that day, different the next day', () => {
-  const db = freshDb();
-  const a = createRoom(db, 'Ana', {}, { mode: 'daily' });
-  const b = createRoom(db, 'Ben', {}, { mode: 'daily' });
-  const ids = code => findRoom(db, code).rounds.map(r => r.productId);
-  assert.equal(ids(a.code).length, 5);
-  assert.deepEqual(ids(a.code), ids(b.code));
-  const catalog = findRoom(db, a.code).rounds.map(r => ({ id: r.productId, category: r.product.category }));
+test('daily challenge: same 5 products for everyone that day, different the next day', async () => {
+  const db = await freshDb();
+  const a = await createRoom(db, 'Ana', {}, { mode: 'daily' });
+  const b = await createRoom(db, 'Ben', {}, { mode: 'daily' });
+  const ids = async code => (await findRoom(db, code)).rounds.map(r => r.productId);
+  assert.equal((await ids(a.code)).length, 5);
+  assert.deepEqual(await ids(a.code), await ids(b.code));
+  const catalog = (await findRoom(db, a.code)).rounds.map(r => ({ id: r.productId, category: r.product.category }));
   assert.notDeepEqual(dailyProducts('2026-01-01', catalog, 3), dailyProducts('2026-01-02', catalog, 3));
 });
 
-test('daily challenge reveals on guess, is solo, and ends with a price style', () => {
-  const db = freshDb();
-  const me = createRoom(db, 'Solo', CONSENT, { mode: 'daily' });
-  assert.throws(() => joinRoom(db, me.code, 'Friend'), /solo/);
+test('daily challenge reveals on guess, is solo, and ends with a price style', async () => {
+  const db = await freshDb();
+  const me = await createRoom(db, 'Solo', CONSENT, { mode: 'daily' });
+  await assert.rejects(async () => joinRoom(db, me.code, 'Friend'), /solo/);
   for (let i = 0; i < 5; i++) {
-    act(db, me.code, me, 'guess', { guess: priceOf(db, me.code, i) * 1.5, roundIndex: i });
-    const snap = view(db, me.code, me);
+    await act(db, me.code, me, 'guess', { guess: (await priceOf(db, me.code, i)) * 1.5, roundIndex: i });
+    const snap = await view(db, me.code, me);
     assert.equal(snap.revealed, true);
     assert.equal(snap.mode, 'daily');
-    act(db, me.code, me, 'next', { roundIndex: roundIndex(db, me.code) });
+    await act(db, me.code, me, 'next', { roundIndex: await roundIndex(db, me.code) });
   }
-  const end = view(db, me.code, me);
+  const end = await view(db, me.code, me);
   assert.equal(end.finished, true);
   assert.equal(end.priceStyle.key, 'premium');
   assert.equal(end.priceStyle.biasPct, 50);
-  assert.equal(db.prepare('SELECT COUNT(*) FROM responses').pluck().get(), 5);
+  assert.equal(await db.prepare('SELECT COUNT(*) FROM responses').pluck().get(), 5);
 });
 
-test('party games give products in an active study up to a third of the rounds', () => {
+test('party games give products in an active study up to a third of the rounds', async () => {
   const products = Array.from({ length: 40 }, (_, i) => ({ id: `p${i}`, category: `c${i % 4}` }));
   const picked = selectProducts(10, products, { priorityIds: ['p1', 'p2', 'p3', 'p5', 'p7'] });
   assert.equal(picked.length, 10);
@@ -54,26 +54,26 @@ test('reports leave out joke guesses and instant answers, and say how many', asy
   assert.equal(report.sample.responses, 1);
 });
 
-test('rooms made from the app wait in a lobby: no guesses until the host starts, timing counts from the start', () => {
-  const db = freshDb();
-  const host = createRoom(db, 'Host', {}, { mode: 'party', lobby: true });
-  const guest = joinRoom(db, host.code, 'Guest');
-  assert.equal(view(db, host.code, guest).lobby, true);
-  assert.throws(() => act(db, host.code, guest, 'guess', { guess: 10, roundIndex: 0 }), /hasn’t started/);
-  assert.throws(() => act(db, host.code, guest, 'start', { roundIndex: 0 }), /Only the host/);
-  act(db, host.code, host, 'start', { roundIndex: 0 });
-  assert.equal(view(db, host.code, guest).lobby, false);
-  assert.throws(() => act(db, host.code, host, 'start', { roundIndex: 0 }), /already started/);
-  act(db, host.code, guest, 'guess', { guess: 10, roundIndex: 0 });
-  assert.ok(findRoom(db, host.code).rounds[0].startedAt);
+test('rooms made from the app wait in a lobby: no guesses until the host starts, timing counts from the start', async () => {
+  const db = await freshDb();
+  const host = await createRoom(db, 'Host', {}, { mode: 'party', lobby: true });
+  const guest = await joinRoom(db, host.code, 'Guest');
+  assert.equal((await view(db, host.code, guest)).lobby, true);
+  await assert.rejects(async () => act(db, host.code, guest, 'guess', { guess: 10, roundIndex: 0 }), /hasn’t started/);
+  await assert.rejects(async () => act(db, host.code, guest, 'start', { roundIndex: 0 }), /Only the host/);
+  await act(db, host.code, host, 'start', { roundIndex: 0 });
+  assert.equal((await view(db, host.code, guest)).lobby, false);
+  await assert.rejects(async () => act(db, host.code, host, 'start', { roundIndex: 0 }), /already started/);
+  await act(db, host.code, guest, 'guess', { guess: 10, roundIndex: 0 });
+  assert.ok((await findRoom(db, host.code)).rounds[0].startedAt);
 });
 
 test('brand experiment: unbranded rounds show plain copy, and the analysis recovers the planted brand premium', async () => {
   const { brandEffect } = await import('../server/analytics/brand.js');
   const { generateSynthetic, brandPremium } = await import('../server/seed/synthetic.js');
   const { pricedProducts } = await import('../server/db/catalog.js');
-  const db = freshDb();
-  const products = pricedProducts(db).filter(p => ['item_105', 'prod_1', 'item_009', 'item_010', 'item_011', 'item_012', 'item_013', 'item_014', 'item_015', 'item_016'].includes(p.id));
+  const db = await freshDb();
+  const products = (await pricedProducts(db)).filter(p => ['item_105', 'prod_1', 'item_009', 'item_010', 'item_011', 'item_012', 'item_013', 'item_014', 'item_015', 'item_016'].includes(p.id));
   // A 90% interval should contain the planted premium in most datasets, and the estimate should sit close to it.
   let covered = 0, responses;
   for (let seed = 1; seed <= 10; seed++) {
@@ -88,10 +88,10 @@ test('brand experiment: unbranded rounds show plain copy, and the analysis recov
   assert.ok(covered >= 15, `interval covered the truth ${covered}/20 times`);
   assert.equal(brandEffect(responses.filter(r => r.productId === 'item_009')), null, 'unbranded items have no experiment');
   // In a game, the unbranded arm hides the brand name.
-  db.prepare("UPDATE rounds SET frame = 'unbranded'").run();
-  const me = createRoom(db, 'Solo', {}, { mode: 'daily' });
-  db.prepare("UPDATE rounds SET product_id = 'item_105', frame = 'unbranded' WHERE round_no = 1").run();
-  const shown = view(db, me.code, me).product;
+  await db.prepare("UPDATE rounds SET frame = 'unbranded'").run();
+  const me = await createRoom(db, 'Solo', {}, { mode: 'daily' });
+  await db.prepare("UPDATE rounds SET product_id = 'item_105', frame = 'unbranded' WHERE round_no = 1").run();
+  const shown = (await view(db, me.code, me)).product;
   assert.equal(shown.brand, null);
   assert.ok(!/Rolex|Submariner/.test(shown.title + shown.description));
 });

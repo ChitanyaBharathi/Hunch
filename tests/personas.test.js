@@ -8,7 +8,7 @@ import { PRODUCTS } from '../server/products.js';
 const categories = [...new Set(PRODUCTS.map(p => p.category))];
 const products = PRODUCTS.map(p => ({ id: p.id, category: p.category, priceCents: Math.round(p.price * 100) }));
 
-test('k-means and silhouette find well-separated known groups', () => {
+test('k-means and silhouette find well-separated known groups', async () => {
   const random = rng(9);
   const centres = [[0, 0], [5, 5], [0, 5]];
   const points = centres.flatMap(c => Array.from({ length: 30 }, () => [c[0] + random() - 0.5, c[1] + random() - 0.5]));
@@ -18,7 +18,7 @@ test('k-means and silhouette find well-separated known groups', () => {
   assert.equal(chooseK(points, { kMin: 2, kMax: 5 }).k, 3);
 });
 
-test('personas recover the planted groups in synthetic respondents and are named from their shape', () => {
+test('personas recover the planted groups in synthetic respondents and are named from their shape', async () => {
   const { respondents, responses } = generateSynthetic({ products, respondents: 300, seed: 17 });
   const fit = buildPersonas(responses, categories);
   assert.ok(!fit.suppressed);
@@ -37,7 +37,7 @@ test('personas recover the planted groups in synthetic respondents and are named
   assert.ok(fit.personas.every(p => p.reported && p.size >= 10));
 });
 
-test('naming rules', () => {
+test('naming rules', async () => {
   const zeros = categories.map(() => 0);
   assert.equal(nameCentroid(zeros, categories).name, 'Calibrated Shopper');
   assert.equal(nameCentroid(categories.map(() => -0.4), categories).name, 'Bargain Anchor');
@@ -46,7 +46,7 @@ test('naming rules', () => {
   assert.notEqual(nameCentroid(zeros, categories, new Set(['Calibrated Shopper'])).name, 'Calibrated Shopper');
 });
 
-test('too few eligible respondents: personas are suppressed, not guessed', () => {
+test('too few eligible respondents: personas are suppressed, not guessed', async () => {
   const { responses } = generateSynthetic({ products, respondents: 20, seed: 3 });
   assert.ok(respondentVectors(responses, categories).length <= 20);
   assert.ok(buildPersonas(responses, categories).suppressed);

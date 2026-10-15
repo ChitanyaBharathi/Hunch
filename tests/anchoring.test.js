@@ -6,7 +6,7 @@ import { PRODUCTS } from '../server/products.js';
 
 const products = PRODUCTS.map(p => ({ id: p.id, category: p.category, priceCents: Math.round(p.price * 100) }));
 
-test('anchoring regression recovers a planted effect despite the expensive-items confound', () => {
+test('anchoring regression recovers a planted effect despite the expensive-items confound', async () => {
   const { responses } = generateSynthetic({ products, respondents: 300, seed: 41 });
   const a = anchoringEffect(responses);
   assert.ok(!a.suppressed);
@@ -17,7 +17,7 @@ test('anchoring regression recovers a planted effect despite the expensive-items
   assert.ok(Math.abs(a.perDoublingPct - (2 ** a.slope - 1)) < 1e-12);
 });
 
-test('no planted effect: the interval covers zero and the sentence says so', () => {
+test('no planted effect: the interval covers zero and the sentence says so', async () => {
   // Interval coverage checked over 60 seeds was 95%; this seed is one where it covers zero, as 95% of them do.
   const { responses } = generateSynthetic({ products, respondents: 300, seed: 100, anchorSlope: 0 });
   const a = anchoringEffect(responses);
@@ -26,7 +26,7 @@ test('no planted effect: the interval covers zero and the sentence says so', () 
   assert.match(a.sentence, /can't yet tell/);
 });
 
-test('anchoring is suppressed below 30 responses or 10 respondents', () => {
+test('anchoring is suppressed below 30 responses or 10 respondents', async () => {
   const { responses } = generateSynthetic({ products, respondents: 2, seed: 43 });
   assert.ok(anchoringEffect(responses).suppressed);
   assert.ok(anchoringEffect(responses.slice(0, 20)).suppressed);

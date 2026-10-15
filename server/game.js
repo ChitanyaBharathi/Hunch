@@ -23,96 +23,96 @@ const money = (value, message, { min = 0.01, allowNull = false } = {}) => {
 };
 
 // Research enrolment: consent requires confirming age 18+. Returns the browser key for the respondent.
-function enrolResearch(db, playerId, { researchConsent, ageConfirmed, respondentKey } = {}) {
+async function enrolResearch(db, playerId, { researchConsent, ageConfirmed, respondentKey } = {}) {
   if (researchConsent !== true) return null;
   if (ageConfirmed !== true) fail('Confirm you are 18 or older to contribute to research.');
   // A player re-consenting to a newer text keeps their existing research identity.
-  const linked = identity.respondentForPlayer(db, playerId);
-  const { respondentId, key } = linked ? { respondentId: linked, key: identity.rekey(db, linked) } : identity.findOrCreateRespondent(db, respondentKey);
-  identity.linkPlayer(db, playerId, respondentId);
-  identity.grantConsent(db, respondentId, { version: CONSENT_VERSION, textHash: CONSENT_TEXT_HASH });
+  const linked = await identity.respondentForPlayer(db, playerId);
+  const { respondentId, key } = linked ? { respondentId: linked, key: await identity.rekey(db, linked) } : await identity.findOrCreateRespondent(db, respondentKey);
+  await identity.linkPlayer(db, playerId, respondentId);
+  await identity.grantConsent(db, respondentId, { version: CONSENT_VERSION, textHash: CONSENT_TEXT_HASH });
   return key;
 }
 
-function addPlayer(db, roomId, name, research) {
+async function addPlayer(db, roomId, name, research) {
   const token = randomBytes(24).toString('hex');
   const id = randomUUID();
-  q.insertPlayer(db, { id, roomId, name, tokenHash: hashToken(token), joinedAt: now() });
-  return { player: { id, name }, token, respondentKey: enrolResearch(db, id, research) };
+  await q.insertPlayer(db, { id, roomId, name, tokenHash: hashToken(token), joinedAt: now() });
+  return { player: { id, name }, token, respondentKey: await enrolResearch(db, id, research) };
 }
 
-export function createRoom(db, name, research = {}, { mode = 'party', lobby = false } = {}) {
+export async function createRoom(db, name, research = {}, { mode = 'party', lobby = false } = {}) {
   const clean = cleanName(name);
   if (!['party', 'daily'].includes(mode)) fail('Choose a valid game mode.');
-  return db.transaction(() => {
+  return db.transaction(async () => {
     let code;
-    do { code = randomBytes(3).toString('hex').toUpperCase(); } while (q.codeExists(db, code));
+    do { code = randomBytes(3).toString('hex').toUpperCase(); } while (await q.codeExists(db, code));
     const at = now();
     const date = today();
-    const roomId = q.insertRoom(db, { code, createdAt: at, mode, dailyDate: mode === 'daily' ? date : null });
-    const catalog = pricedProducts(db, date);
-    const products = mode === 'daily' ? dailyProducts(date, catalog) : selectProducts(undefined, catalog, { priorityIds: activeStudyProductIds(db, date) });
+    const roomId = await q.insertRoom(db, { code, createdAt: at, mode, dailyDate: mode === 'daily' ? date : null });
+    const catalog = await pricedProducts(db, date);
+    const products = mode === 'daily' ? dailyProducts(date, catalog) : selectProducts(undefined, catalog, { priorityIds: await activeStudyProductIds(db, date) });
     // Snapshot each round's price now, so later catalog price edits never change this game's results.
-    products.forEach((p, i) =>
-      q.insertRound(db, { roomId, roundNo: i + 1, productId: p.id, priceId: p.priceId, priceCents: p.priceCents, startedAt: i === 0 && !(lobby && mode === 'party') ? at : null,
-        frame: UNBRANDED[p.id] && randomBytes(1)[0] < 128 ? 'unbranded' : 'standard' }));
-    const joined = addPlayer(db, roomId, clean, research);
-    q.setHost(db, roomId, joined.player.id);
+    for (const [i, p] of products.entries())
+      await q.insertRound(db, { roomId, roundNo: i + 1, productId: p.id, priceId: p.priceId, priceCents: p.priceCents, startedAt: i === 0 && !(lobby && mode === 'party') ? at : null,
+        frame: UNBRANDED[p.id] && randomBytes(1)[0] < 128 ? 'unbranded' : 'standard' });
+    const joined = await addPlayer(db, roomId, clean, research);
+    await q.setHost(db, roomId, joined.player.id);
     return { code, ...joined };
   })();
 }
 
-export function findRoom(db, code) {
-  const room = q.loadRoom(db, String(code).toUpperCase());
+export async function findRoom(db, code) {
+  const room = await q.loadRoom(db, String(code).toUpperCase());
   if (!room) fail('Room not found. Check the code with your host.', 404);
   return room;
 }
 
-export function joinRoom(db, code, name, research = {}) {
-  const room = findRoom(db, code);
+export async function joinRoom(db, code, name, research = {}) {
+  const room = await findRoom(db, code);
   if (room.mode === 'daily') fail('Daily challenges are solo. Start your own from the home screen.');
   if (room.status === 'finished') fail('This game has finished. Ask the host to create a new room.');
   const clean = cleanName(name);
   if (room.players.some(p => p.name.toLowerCase() === clean.toLowerCase())) fail('That name is taken. Add your surname or a nickname.');
   if (room.players.length >= 100) fail('This room is full.');
-  return db.transaction(() => ({ code: room.code, ...addPlayer(db, room.id, clean, research) }))();
+  return db.transaction(async () => ({ code: room.code, ...(await addPlayer(db, room.id, clean, research)) }))();
 }
 
-export function authenticate(db, code, token) {
-  const room = findRoom(db, code);
-  const player = typeof token === 'string' && token ? q.playerByToken(db, room.id, hashToken(token)) : null;
+export async function authenticate(db, code, token) {
+  const room = await findRoom(db, code);
+  const player = typeof token === 'string' && token ? await q.playerByToken(db, room.id, hashToken(token)) : null;
   if (!player) fail('Your session is no longer valid. Join the room again.', 401);
   return { room, player };
 }
 
 // Research rows are written only here, at reveal, for guesses made under a consent that is still active now.
-function writeResearch(db, room, round, at) {
-  const consents = identity.activeConsentsInRoom(db, room.id);
+async function writeResearch(db, room, round, at) {
+  const consents = await identity.activeConsentsInRoom(db, room.id);
   const previous = room.rounds.find(r => r.roundNo === round.roundNo - 1);
-  const studyId = studyForProduct(db, round.productId, at.slice(0, 10));
+  const studyId = await studyForProduct(db, round.productId, at.slice(0, 10));
   for (const [playerId, g] of Object.entries(round.guesses)) {
     const consent = consents.get(playerId);
     if (!consent || consent.consentId !== g.consentId) continue;
-    insertResponse(db, { respondentId: consent.respondentId, productId: round.productId, roundPosition: round.roundNo,
+    await insertResponse(db, { respondentId: consent.respondentId, productId: round.productId, roundPosition: round.roundNo,
       prevPriceCents: previous?.priceCents ?? null, actualCents: round.priceCents, guessCents: g.guessCents,
       maxPayCents: g.maxPayCents, tooCheapCents: g.tooCheapCents, msToAnswer: g.msToAnswer, answeredAt: g.submittedAt, studyId, frame: round.frame ?? 'standard' });
   }
 }
 
 // Returns extra fields for the response (e.g. a new respondent key), or undefined.
-export function applyAction(db, room, player, action, body = {}) {
+export async function applyAction(db, room, player, action, body = {}) {
   if (action === 'consent') {
     if (typeof body.researchConsent !== 'boolean') fail('Choose a valid research preference.');
-    const current = identity.playerResearch(db, player.id);
+    const current = await identity.playerResearch(db, player.id);
     if (body.researchConsent) {
       if (current.status === 'active') return undefined;
-      return { respondentKey: db.transaction(() => enrolResearch(db, player.id, body))() };
+      return { respondentKey: await db.transaction(() => enrolResearch(db, player.id, body))() };
     }
-    if (current.respondentId) identity.withdraw(db, current.respondentId);
+    if (current.respondentId) await identity.withdraw(db, current.respondentId);
     return undefined;
   }
   if (action === 'profile') {
-    const current = identity.playerResearch(db, player.id);
+    const current = await identity.playerResearch(db, player.id);
     if (current.status !== 'active') fail('Profile questions are only for research participants.', 403);
     const answers = {};
     for (const [field, allowed] of Object.entries(PROFILE_OPTIONS)) {
@@ -120,7 +120,7 @@ export function applyAction(db, room, player, action, body = {}) {
       if (value !== null && !allowed.includes(value)) fail('Choose one of the listed answers.');
       answers[field] = value;
     }
-    identity.saveProfile(db, current.respondentId, answers);
+    await identity.saveProfile(db, current.respondentId, answers);
     return undefined;
   }
   const round = room.rounds[room.currentRoundNo - 1];
@@ -137,17 +137,18 @@ export function applyAction(db, room, player, action, body = {}) {
     const maxPayCents = money(body.maximumPay, 'Enter a maximum price between S$0 and S$1,000,000, or leave it blank.', { min: 0, allowNull: true });
     const tooCheapCents = money(body.tooCheap, 'Enter a "too cheap" price between S$0 and S$1,000,000, or leave it blank.', { min: 0, allowNull: true });
     // The optional research answers are kept only for players who are research participants at this moment.
-    const research = identity.playerResearch(db, player.id);
+    const research = await identity.playerResearch(db, player.id);
     const researching = research.status === 'active';
     const submittedAt = now();
     const startedAt = [round.startedAt, player.joinedAt].filter(Boolean).sort().at(-1);
-    q.insertGuess(db, { roundId: round.id, playerId: player.id, guessCents, submittedAt,
+    await q.insertGuess(db, { roundId: round.id, playerId: player.id, guessCents, submittedAt,
       maxPayCents: researching ? maxPayCents : null, tooCheapCents: researching ? tooCheapCents : null, consentId: researching ? research.consentId : null,
-      msToAnswer: startedAt ? Math.max(0, Date.parse(submittedAt) - Date.parse(startedAt)) : null });
+      msToAnswer: startedAt ? Math.max(0, Date.parse(submittedAt) - Date.parse(startedAt)) : null })
+      .catch(error => { throw error.code === '23505' ? Object.assign(new Error('Your guess is already locked in.'), { status: 409 }) : error; });
     if (room.mode === 'daily') {
-      const fresh = q.loadRoom(db, room.code);
+      const fresh = await q.loadRoom(db, room.code);
       const freshRound = fresh.rounds[fresh.currentRoundNo - 1];
-      db.transaction(() => { q.revealRound(db, freshRound.id, submittedAt); writeResearch(db, fresh, freshRound, submittedAt); })();
+      await db.transaction(async () => { await q.revealRound(db, freshRound.id, submittedAt); await writeResearch(db, fresh, freshRound, submittedAt); })();
     }
     return undefined;
   }
@@ -155,16 +156,19 @@ export function applyAction(db, room, player, action, body = {}) {
   if (body.roundIndex !== room.currentRoundNo - 1) fail('The round changed. Refresh and try again.', 409);
   if (action === 'start') {
     if (!inLobby) fail('The game has already started.', 409);
-    q.startRound(db, round.id, now());
+    await q.startRound(db, round.id, now());
   } else if (action === 'reveal') {
     if (round.revealedAt) fail('The price is already revealed.', 409);
     if (!Object.keys(round.guesses).length) fail('Wait for at least one guess before revealing.');
     const at = now();
-    db.transaction(() => { q.revealRound(db, round.id, at); writeResearch(db, room, round, at); })();
+    await db.transaction(async () => {
+      // Two reveals racing: only the one that flips revealed_at writes research.
+      if ((await q.revealRound(db, round.id, at)).changes) await writeResearch(db, room, round, at);
+    })();
   } else if (action === 'next') {
     if (!round.revealedAt) fail('Reveal this round before moving on.', 409);
-    if (room.currentRoundNo === room.rounds.length) q.finishRoom(db, room.id, now());
-    else q.advanceRoom(db, room.id, room.currentRoundNo + 1, now());
+    if (room.currentRoundNo === room.rounds.length) await q.finishRoom(db, room.id, now());
+    else await q.advanceRoom(db, room.id, room.currentRoundNo + 1, now());
   } else fail('Unknown action.', 404);
   return undefined;
 }
@@ -183,8 +187,8 @@ export function rankRound(room, index) {
 }
 
 // "You and Hari price things alike": only between players who both have active research consent.
-function roomTwin(db, room, player) {
-  const consenting = identity.activeConsentsInRoom(db, room.id);
+async function roomTwin(db, room, player) {
+  const consenting = await identity.activeConsentsInRoom(db, room.id);
   if (!consenting.has(player.id)) return null;
   const revealed = room.rounds.filter(r => r.revealedAt);
   const people = room.players.filter(p => consenting.has(p.id)).map(p => ({ id: p.id, name: p.name,
@@ -208,10 +212,10 @@ export function priceStyle(room, playerId) {
   return { key, ...STYLES[key], biasPct: Math.round((Math.exp(mean) - 1) * 100) };
 }
 
-export function snapshot(db, room, player) {
+export async function snapshot(db, room, player) {
   const round = room.rounds[room.currentRoundNo - 1];
   const finished = room.status === 'finished';
-  const research = identity.playerResearch(db, player.id);
+  const research = await identity.playerResearch(db, player.id);
   const overall = room.players.map(p => {
     const results = room.rounds.flatMap((_, index) => rankRound(room, index).filter(row => row.playerId === p.id));
     return { playerId: p.id, name: p.name, points: results.reduce((total, r) => total + r.points, 0),
@@ -228,7 +232,7 @@ export function snapshot(db, room, player) {
     rankings: rankRound(room, room.currentRoundNo - 1),
     overall: overall.map(row => ({ ...row, rank: overall.findIndex(other => other.points === row.points) + 1 })),
     history: room.rounds.flatMap((r, index) => r.revealedAt ? [{ roundIndex: index, title: r.product.title, rankings: rankRound(room, index) }] : []),
-    priceTwin: finished ? roomTwin(db, room, player) : null,
+    priceTwin: finished ? await roomTwin(db, room, player) : null,
     mode: room.mode ?? 'party', dailyDate: room.dailyDate ?? null,
     priceStyle: finished ? priceStyle(room, player.id) : null };
 }

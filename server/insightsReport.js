@@ -8,13 +8,13 @@ export { reportCsv } from './analytics/report.js';
 const METHODOLOGY_ROOM = 'Only revealed rounds from players with active research consent are included. Anything below the threshold is withheld. Guesses measure price perception; "most I\'d pay" is hypothetical, not a purchase.';
 
 // Host's per-room view. Built from the game tables (research rows carry no room code by design).
-export function roomReport(db, room) {
-  const rows = roomResearchRows(db, room.id, CONSENT_VERSION);
+export async function roomReport(db, room) {
+  const rows = await roomResearchRows(db, room.id, CONSENT_VERSION);
   // Only revealed rounds: listing the rest would tell the host which items are coming up.
-  const products = productsById(db, room.rounds.filter(r => r.revealedAt).map(r => r.productId))
+  const products = (await productsById(db, room.rounds.filter(r => r.revealedAt).map(r => r.productId)))
     .map(p => ({ ...p, priceCents: room.rounds.find(r => r.productId === p.id).priceCents }));
   return { scope: 'room', methodology: METHODOLOGY_ROOM, consentVersion: CONSENT_VERSION,
-    ...buildReport({ products, rows, categories: listCategories(db).map(c => c.name) }) };
+    ...buildReport({ products, rows, categories: (await listCategories(db)).map(c => c.name) }) };
 }
 
 // What every company report says about how the data was collected. Honest about who answered and what a guess is.
@@ -34,13 +34,15 @@ export const METHODOLOGY = {
 };
 
 // A company study: pooled across every room and date inside the study window.
-export function studyReport(db, study) {
-  const products = productsById(db, study.productIds);
-  const rows = responses(db, { productIds: study.productIds, from: study.startsOn, to: study.endsOn });
+export async function studyReport(db, study) {
+  const [products, rows, personaRows, anchorRows, categories] = await Promise.all([
+    productsById(db, study.productIds),
+    responses(db, { productIds: study.productIds, from: study.startsOn, to: study.endsOn }),
+    responses(db),                                              // personas are fitted on everyone, then applied here
+    responses(db, { from: study.startsOn, to: study.endsOn }),  // anchoring uses every product in the window
+    listCategories(db),
+  ]);
   return { scope: 'study', methodology: METHODOLOGY,
     study: { id: study.id, title: study.title, startsOn: study.startsOn, endsOn: study.endsOn, status: study.status, responses: rows.length, minResponses: study.minResponses },
-    ...buildReport({ products, rows,
-      personaRows: responses(db),                                            // personas are fitted on everyone, then applied here
-      anchorRows: responses(db, { from: study.startsOn, to: study.endsOn }), // anchoring uses every product in the window
-      categories: listCategories(db).map(c => c.name) }) };
+    ...buildReport({ products, rows, personaRows, anchorRows, categories: categories.map(c => c.name) }) };
 }
