@@ -141,7 +141,6 @@ export const PRODUCT_IMAGES = {
   item_149: { credit: "NormZC · CC BY 2.0", source: "https://www.flickr.com/photos/71410923@N03/6455931115" },
   item_150: { credit: "Shaun Garrity · CC BY 2.0", source: "https://www.flickr.com/photos/45774886@N00/248949123" },
   item_151: { credit: "Kai Hendry · CC BY 2.0", source: "https://www.flickr.com/photos/16105436@N00/397510397" },
-  prod_2: { credit: "silentfuzions · CC BY 2.0", source: "https://www.flickr.com/photos/37206010@N07/3426339306" },
   prod_3: { credit: "FASTILY · CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Dyson_Supersonic_Hair_Dryer_1_2017-01-28.jpg" },
   prod_5: { credit: "Maurizio Pesce from Milan, Italia · CC BY 2.0", source: "https://commons.wikimedia.org/wiki/File:Apple_iPad_Air_2_vs_iPad_Air_(15462494089).jpg" },
   prod_6: { credit: "iMoD Official YouTube channel · CC BY 3.0", source: "https://commons.wikimedia.org/wiki/File:Keychron_K4_mechanical_keyboard.jpg" },

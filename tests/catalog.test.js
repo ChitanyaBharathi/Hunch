@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { PRODUCTS } from '../server/products.js';
 import { selectProducts, ROUNDS_PER_GAME } from '../server/roundSelection.js';
 import { createRoom } from '../server/game.js';
-import { pricedProducts, seedCatalog } from '../server/db/catalog.js';
+import { pricedProducts, seedCatalog, RETIRED } from '../server/db/catalog.js';
 import { freshDb, view } from './helpers.js';
 
 test('seed catalog covers nine categories, every item has a picture, and benchmark metadata is honest', async () => {
@@ -26,7 +26,7 @@ test('database catalog is seeded with categories, products and dated demo prices
   const db = await freshDb();
   assert.equal(await db.prepare('SELECT COUNT(*) FROM categories').pluck().get(), 9);
   const priced = await pricedProducts(db);
-  assert.equal(priced.length, 151);
+  assert.equal(priced.length, 151 - RETIRED.length);
   assert.ok(priced.every(p => Number.isInteger(p.priceCents) && p.priceCents > 0 && p.sourceUrl === null));
   assert.equal(priced.find(p => p.id === 'prod_1').priceCents, 49900);
 });
@@ -63,6 +63,14 @@ test('inactive products are never dealt and room views never leak prices', async
   }
 });
 
+test('retired items stay in the database for old games but are switched off and never dealt', async () => {
+  const db = await freshDb();
+  await db.prepare("UPDATE products SET is_active = 1 WHERE id = 'prod_2'").run();
+  await seedCatalog(db);
+  assert.equal(await db.prepare("SELECT is_active FROM products WHERE id = 'prod_2'").pluck().get(), 0);
+  assert.ok(!(await pricedProducts(db)).some(p => p.id === 'prod_2'));
+});
+
 test('reopening a database adds new catalog items without touching edited ones', async () => {
   const db = await freshDb();
   await db.prepare("UPDATE products SET name = 'Edited by admin' WHERE id = 'prod_1'").run();
@@ -70,6 +78,6 @@ test('reopening a database adds new catalog items without touching edited ones',
   await db.prepare("DELETE FROM products WHERE id = 'item_150'").run();
   await seedCatalog(db);
   assert.equal(await db.prepare("SELECT name FROM products WHERE id = 'prod_1'").pluck().get(), 'Edited by admin');
-  assert.equal((await pricedProducts(db)).length, 151);
+  assert.equal((await pricedProducts(db)).length, 151 - RETIRED.length);
   assert.ok(await db.prepare("SELECT emoji FROM products WHERE id = 'item_150'").pluck().get());
 });

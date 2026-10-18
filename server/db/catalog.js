@@ -11,13 +11,17 @@ export const today = () => new Date().toISOString().slice(0, 10);
 // One read, then writes only for what is missing or changed, so a cold start costs a single query.
 // Items deliberately rewritten in code. Applied only while the database still holds the old title, so admin edits survive.
 const RENAMED = { item_075: 'Concert ticket, mid-tier seat' };
+// Items taken out of the game. Their rows stay so old games and research still resolve; they are just never dealt.
+export const RETIRED = ['prod_2'];
 
 export async function seedCatalog(db, products = PRODUCTS) {
   for (const [id, oldTitle] of Object.entries(RENAMED)) {
     const p = products.find(item => item.id === id);
     if (p) await db.prepare('UPDATE products SET name = ?, brand = ?, description = ? WHERE id = ? AND name = ?').run(p.title, p.brand ?? null, p.description, id, oldTitle);
   }
-  const existing = new Map((await db.prepare('SELECT id, image_url AS imageUrl, emoji FROM products').all()).map(r => [r.id, r]));
+  const existing = new Map((await db.prepare('SELECT id, image_url AS imageUrl, emoji, is_active AS isActive FROM products').all()).map(r => [r.id, r]));
+  const retire = RETIRED.filter(id => existing.get(id)?.isActive);
+  for (const id of retire) await db.prepare('UPDATE products SET is_active = 0 WHERE id = ?').run(id);
   const missing = products.filter(p => !existing.has(p.id));
   const changed = products.filter(p => existing.has(p.id) && ((existing.get(p.id).imageUrl ?? null) !== (p.imageUrl ?? null) || (existing.get(p.id).emoji ?? null) !== (p.emoji ?? null)));
   if (!missing.length && !changed.length) return;
@@ -25,8 +29,8 @@ export async function seedCatalog(db, products = PRODUCTS) {
     for (const p of changed) await db.prepare('UPDATE products SET image_url = ?, emoji = ? WHERE id = ?').run(p.imageUrl ?? null, p.emoji ?? null, p.id);
     for (const p of missing) {
       const { id: categoryId } = await db.prepare('INSERT INTO categories (name) VALUES (?) ON CONFLICT (name) DO UPDATE SET name = excluded.name RETURNING id').get(p.category);
-      await db.prepare('INSERT INTO products (id, name, brand, category_id, image_url, description, emoji) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(p.id, p.title, p.brand ?? BRANDS[p.id] ?? null, categoryId, p.imageUrl ?? null, p.description, p.emoji ?? null);
+      await db.prepare('INSERT INTO products (id, name, brand, category_id, image_url, description, emoji, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(p.id, p.title, p.brand ?? BRANDS[p.id] ?? null, categoryId, p.imageUrl ?? null, p.description, p.emoji ?? null, RETIRED.includes(p.id) ? 0 : 1);
       await db.prepare('INSERT INTO product_prices (product_id, price_cents, currency, retailer, source_url, observed_on) VALUES (?, ?, ?, ?, NULL, ?)')
         .run(p.id, Math.round(p.price * 100), p.currency ?? 'SGD', 'Demo benchmark', DEMO_PRICE_DATE);
     }
@@ -40,9 +44,10 @@ const PRODUCT_COLUMNS = `p.id, p.name, p.brand, c.name AS category, p.image_url 
   p.is_active AS isActive, p.sponsor_study_id AS sponsorStudyId, pp.id AS priceId, pp.price_cents AS priceCents,
   pp.retailer, pp.source_url AS sourceUrl, pp.observed_on AS observedOn`;
 
-export async function pricedProducts(db, onDate = today()) {
+// Only active items by default, because these are what games deal. `includeRetired` is for reading back old games.
+export async function pricedProducts(db, onDate = today(), { includeRetired = false } = {}) {
   return db.prepare(`SELECT ${PRODUCT_COLUMNS} FROM products p JOIN categories c ON c.id = p.category_id
-    JOIN product_prices pp ON pp.id = (${LATEST_PRICE}) WHERE p.is_active = 1 ORDER BY p.id`).all({ onDate });
+    JOIN product_prices pp ON pp.id = (${LATEST_PRICE}) ${includeRetired ? '' : 'WHERE p.is_active = 1 '}ORDER BY p.id`).all({ onDate });
 }
 
 export async function productsById(db, ids, onDate = today()) {
