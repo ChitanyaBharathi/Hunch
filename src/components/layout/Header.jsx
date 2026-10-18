@@ -1,11 +1,11 @@
 import React from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, LogOut } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useGame } from '../../context/GameContext';
 
-export function Header({ currentTab, onNavigate }) {
+export function Header({ currentTab, onNavigate, onExit }) {
   const { theme, toggleTheme } = useTheme();
-  const { room } = useGame();
+  const { room, session } = useGame();
   const player = room?.players.find(p => p.id === room.selfId);
 
   return (
@@ -19,6 +19,9 @@ export function Header({ currentTab, onNavigate }) {
       </nav>
 
       <div className="header-actions">
+        {session && <button onClick={onExit} className="header-exit-btn" aria-label="Exit game" title="Leave this game and go back to the home page">
+          <LogOut size={16} /><span>Exit game</span>
+        </button>}
 
         <button
           onClick={toggleTheme}

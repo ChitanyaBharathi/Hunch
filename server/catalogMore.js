@@ -30,7 +30,7 @@ const entries = [
   ['Experiences', 'Singapore Flyer ride', 40, 'One adult standard 30-minute capsule ride.', '🎡'],
   ['Experiences', 'Return flight Singapore–Bangkok, economy', 260, 'One budget-airline economy return ticket with 20kg checked bag, booked a month ahead.', '✈️'],
   ['Experiences', 'Haircut at a salon (men’s)', 38, 'One men’s wash, cut and style at a mid-range mall salon.', '💈'],
-  ['Experiences', 'Concert ticket, mid-tier seat', 228, 'One Category 3 seat for an international pop act at the National Stadium.', '🎤'],
+  ['Experiences', 'The Weeknd concert ticket, Singapore', 228, 'One mid-tier Category 3 seat for The Weeknd at the National Stadium.', '🎤', 'The Weeknd'],
   ['Experiences', 'Hour of karaoke room (weekday)', 25, 'One small private karaoke room for an hour on a weekday afternoon, per room.', '🎶'],
   ['Experiences', 'Gym monthly membership', 158, 'One month of a big-chain gym membership, single-club access, no contract discount.', '🏋️'],
   ['Experiences', 'Netflix Standard plan, monthly', 18.98, 'One month of the Standard (HD, two screens) plan.', '📺', 'Netflix'],

@@ -9,7 +9,14 @@ export const today = () => new Date().toISOString().slice(0, 10);
 // Adds catalog items the database doesn't have yet, and refreshes their pictures.
 // Names, descriptions and prices of existing items are left alone: admins may have edited them.
 // One read, then writes only for what is missing or changed, so a cold start costs a single query.
+// Items deliberately rewritten in code. Applied only while the database still holds the old title, so admin edits survive.
+const RENAMED = { item_075: 'Concert ticket, mid-tier seat' };
+
 export async function seedCatalog(db, products = PRODUCTS) {
+  for (const [id, oldTitle] of Object.entries(RENAMED)) {
+    const p = products.find(item => item.id === id);
+    if (p) await db.prepare('UPDATE products SET name = ?, brand = ?, description = ? WHERE id = ? AND name = ?').run(p.title, p.brand ?? null, p.description, id, oldTitle);
+  }
   const existing = new Map((await db.prepare('SELECT id, image_url AS imageUrl, emoji FROM products').all()).map(r => [r.id, r]));
   const missing = products.filter(p => !existing.has(p.id));
   const changed = products.filter(p => existing.has(p.id) && ((existing.get(p.id).imageUrl ?? null) !== (p.imageUrl ?? null) || (existing.get(p.id).emoji ?? null) !== (p.emoji ?? null)));

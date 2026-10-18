@@ -6,14 +6,14 @@ const TINT = { Tech: 'var(--blue)', Fashion: 'var(--pink)', Beauty: 'var(--lilac
 export function ItemCard({ product }) {
   const [failed, setFailed] = useState(false);
   if (!product) return null;
-  const photo = product.id === 'prod_1' ? '/images/headphones-retro.png' : product.imageUrl;
+  const photo = product.imageUrl;
   const showPhoto = photo && !failed;
   return (
     <div className="item-card card">
       <div className="item-image-wrapper" style={showPhoto ? undefined : { background: TINT[product.category] ?? 'var(--yellow)' }}>
         {showPhoto
           ? <img src={photo} alt={product.title} className="item-image" loading="eager" onError={() => setFailed(true)} />
-          : <div className="item-illustration" role="img" aria-label={product.title}><span aria-hidden="true">{product.emoji ?? '🛒'}</span></div>}
+          : <div className="item-illustration" role="img" aria-label={product.title}><span className="item-illustration-name" aria-hidden="true">{product.title}</span></div>}
         <div className="item-category-overlay">
           <span className="chip">{product.category}</span>
         </div>
@@ -22,7 +22,7 @@ export function ItemCard({ product }) {
         <p className="eyebrow">{product.brand ? product.brand.toUpperCase() : 'ON THE GUESS LIST'}</p>
         <h2 className="item-title">{product.title}</h2>
         <p className="item-description caption">{product.description}</p>
-        {showPhoto && <small className="item-image-note">Illustrative image · use the item description for your guess</small>}
+        {showPhoto && <small className="item-image-note">{product.imageCredit ? `Photo: ${product.imageCredit} · ` : ''}Use the description for your guess</small>}
       </div>
     </div>
   );

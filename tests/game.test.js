@@ -57,6 +57,19 @@ test('only the host controls rounds and guesses cannot be changed or sent late',
   assert.equal((await view(db, code, host)).actualPrice, null);
 });
 
+test('when the host ends the game it closes for everyone, and only the host can end it', async () => {
+  const { db, code, host, guest } = await fixture();
+  await act(db, code, host, 'guess', { guess: 450, roundIndex: 0 });
+  await act(db, code, host, 'reveal', { roundIndex: 0 });
+  await assert.rejects(async () => act(db, code, guest, 'end', { roundIndex: 0 }), { status: 403 });
+  await act(db, code, host, 'end', { roundIndex: 0 });
+  await assert.rejects(async () => authenticate(db, code, guest.token), { status: 410, message: /host ended/ });
+  await assert.rejects(async () => authenticate(db, code, host.token), { status: 410 });
+  await assert.rejects(async () => joinRoom(db, code, 'Late'), /host ended/);
+  // Rounds revealed before the end keep their results.
+  assert.ok((await findRoom(db, code)).rounds[0].revealedAt);
+});
+
 test('invalid inputs, duplicate names, invalid sessions and isolated rooms', async () => {
   const { db, code, host } = await fixture();
   for (const guess of [NaN, Infinity, -1, 0, 0.001, 1000001, '499']) await assert.rejects(async () => act(db, code, host, 'guess', { guess, roundIndex: 0 }));

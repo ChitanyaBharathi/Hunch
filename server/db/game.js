@@ -1,4 +1,5 @@
 import { UNBRANDED } from '../brandFrames.js';
+import { creditFor } from '../productImages.js';
 // Game tables: rooms, rounds, players, guesses. Player names live here and nowhere in research tables.
 
 export const codeExists = async (db, code) => Boolean(await db.prepare('SELECT 1 FROM rooms WHERE code = ?').get(code));
@@ -32,6 +33,7 @@ export async function advanceRoom(db, roomId, nextRoundNo, at) {
 }
 export const startRound = (db, roundId, at) => db.prepare('UPDATE rounds SET started_at = ? WHERE id = ? AND started_at IS NULL').run(at, roundId);
 export const finishRoom = (db, roomId, at) => db.prepare("UPDATE rooms SET status = 'finished', ended_at = ? WHERE id = ?").run(at, roomId);
+export const closeRoom = (db, roomId, at) => db.prepare("UPDATE rooms SET status = 'closed', ended_at = ? WHERE id = ? AND status = 'playing'").run(at, roomId);
 
 // What players see: the unbranded arm swaps in plain copy and drops the brand.
 const framed = (round, shown) => {
@@ -56,7 +58,7 @@ export async function loadRoom(db, code) {
     FROM guesses g JOIN rounds r ON r.id = g.round_id WHERE r.room_id = ?`).all(row.id);
   return { ...row, players, rounds: rounds.map(({ sourceUrl, title, brand, category, description, imageUrl, emoji, unitSize, ...round }) => ({
     ...round,
-    product: { id: round.productId, ...framed(round, { title, brand, description }), category, imageUrl, emoji, unitSize, benchmarkStatus: sourceUrl ? 'verified' : 'demo', imageKind: 'illustrative' },
+    product: { id: round.productId, ...framed(round, { title, brand, description }), category, imageUrl, imageCredit: creditFor(round.productId), emoji, unitSize, benchmarkStatus: sourceUrl ? 'verified' : 'demo', imageKind: 'illustrative' },
     guesses: Object.fromEntries(guesses.filter(g => g.roundId === round.id).map(({ roundId: _r, playerId, ...g }) => [playerId, g])),
   })) };
 }

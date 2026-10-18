@@ -10,6 +10,7 @@ import { priceTwin } from './analytics/twins.js';
 
 export const hashToken = token => createHash('sha256').update(String(token)).digest('hex');
 const fail = (message, status = 400) => { throw Object.assign(new Error(message), { status }); };
+const ENDED = 'The host ended this game. Start or join a new one.';
 const now = () => new Date().toISOString();
 const cleanName = value => {
   const name = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
@@ -72,6 +73,7 @@ export async function joinRoom(db, code, name, research = {}) {
   const room = await findRoom(db, code);
   if (room.mode === 'daily') fail('Daily challenges are solo. Start your own from the home screen.');
   if (room.status === 'finished') fail('This game has finished. Ask the host to create a new room.');
+  if (room.status === 'closed') fail(ENDED);
   const clean = cleanName(name);
   if (room.players.some(p => p.name.toLowerCase() === clean.toLowerCase())) fail('That name is taken. Add your surname or a nickname.');
   if (room.players.length >= 100) fail('This room is full.');
@@ -82,6 +84,8 @@ export async function authenticate(db, code, token) {
   const room = await findRoom(db, code);
   const player = typeof token === 'string' && token ? await q.playerByToken(db, room.id, hashToken(token)) : null;
   if (!player) fail('Your session is no longer valid. Join the room again.', 401);
+  // 410 tells every player's app to leave the room and go home.
+  if (room.status === 'closed') fail(ENDED, 410);
   return { room, player };
 }
 
@@ -153,6 +157,7 @@ export async function applyAction(db, room, player, action, body = {}) {
     return undefined;
   }
   if (player.id !== room.hostId) fail('Only the host can control the round.', 403);
+  if (action === 'end') { await q.closeRoom(db, room.id, now()); return undefined; }
   if (body.roundIndex !== room.currentRoundNo - 1) fail('The round changed. Refresh and try again.', 409);
   if (action === 'start') {
     if (!inLobby) fail('The game has already started.', 409);
