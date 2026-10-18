@@ -12,7 +12,7 @@ const cents = dollars => Math.round(Number(dollars) * 100);
 // Old opt-ins are recorded under the legacy consent version, so those players are asked again for the new text;
 // their earlier research answers (given under that legacy consent) are kept as research responses.
 export async function importRooms(db, legacy, { importedAt = new Date().toISOString() } = {}) {
-  const prices = new Map((await pricedProducts(db, '9999-12-31')).map(p => [p.id, p]));
+  const prices = new Map((await pricedProducts(db, '9999-12-31', { includeRetired: true })).map(p => [p.id, p]));
   const summary = { rooms: 0, skipped: 0, players: 0, guesses: 0, respondents: 0, responses: 0 };
   await db.transaction(async () => {
     for (const room of Object.values(legacy?.rooms ?? {})) {
