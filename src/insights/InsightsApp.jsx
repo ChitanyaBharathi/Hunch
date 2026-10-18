@@ -1,5 +1,8 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
+import { Sun, Moon } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 import { ReportView } from './ReportView';
+import { AskAnalyst } from './AskAnalyst';
 import { date } from './format';
 import './insights.css';
 
@@ -81,6 +84,7 @@ function StudyReport({ session, study, onBack, onExpired }) {
   if (error) return <p className="hi-error" role="alert">{error}</p>;
   if (!report) return <p role="status" className="hi-muted">Building the report…</p>;
   return <ReportView report={report} title={report.study.title} subtitle={`${report.study.responses} of ${report.study.minResponses} target responses collected.`}
+    assistant={<AskAnalyst session={session} study={study} onExpired={onExpired} />}
     actions={<>
       <button className="hi-button hi-button-quiet" onClick={onBack}>← All studies</button>
       <button className="hi-button hi-button-quiet" onClick={load}>Refresh</button>
@@ -92,17 +96,22 @@ function StudyReport({ session, study, onBack, onExpired }) {
 export function InsightsApp() {
   const [session, setSession] = useState(readSession);
   const [study, setStudy] = useState(null);
-  useEffect(() => {
-    document.documentElement.classList.add('hi-mode');
-    document.title = 'Hunch Insights';
-    return () => document.documentElement.classList.remove('hi-mode');
-  }, []);
+  const { theme, toggleTheme } = useTheme();
+  useEffect(() => { document.title = 'Hunch Insights'; }, []);
   const signIn = useCallback(value => { writeSession(value); setSession(value); }, []);
   const signOut = useCallback(() => { writeSession(null); setSession(null); setStudy(null); }, []);
   return <div className="hunch-insights">
-    <header className="hi-top">
-      <a href="/" className="hi-brand" title="Back to Hunch home"><span aria-hidden="true">H</span>Hunch <em>Insights</em></a>
+    <header className="app-header">
+      <a href="/" className="header-brand" title="Back to Hunch home">
+        <span className="brand-mark" aria-hidden="true">H</span>
+        <span className="brand-name">Hunch <em>Insights</em></span>
+      </a>
       {session && <div className="hi-top-user"><span className="hi-muted">{session.company}</span><button className="hi-link" onClick={signOut}>Sign out</button></div>}
+      <div className="header-actions">
+        <button onClick={toggleTheme} className="header-icon-btn" aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+        </button>
+      </div>
     </header>
     {!session ? <SignIn onSignedIn={signIn} />
       : <main className="hi-main">{study ? <StudyReport session={session} study={study} onBack={() => setStudy(null)} onExpired={signOut} /> : <Studies session={session} onOpen={setStudy} onExpired={signOut} />}</main>}

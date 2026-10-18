@@ -301,7 +301,7 @@ input[type='number'] { -moz-appearance: textfield; }
   display: flex;
   align-items: center;
   gap: 24px;
-  margin: 16px 40px 32px;
+  margin: 16px 40px 56px;
   padding: 10px 12px 10px 16px;
   background: var(--surface);
   border: var(--bw) solid var(--ink);
@@ -375,6 +375,15 @@ input[type='number'] { -moz-appearance: textfield; }
 .header-icon-btn:active, .header-avatar-btn:active { transform: translate(3px, 3px); box-shadow: none; }
 .header-avatar-btn { background: var(--lilac); }
 .header-avatar-btn.active { background: var(--primary); }
+.header-exit-btn {
+  height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px;
+  background: var(--surface); border: var(--bw-thin) solid var(--ink); border-radius: var(--radius);
+  color: var(--text-primary); font-weight: 700; font-size: 14px; box-shadow: var(--shadow-sm);
+  transition: transform var(--ease), box-shadow var(--ease);
+}
+.header-exit-btn:hover { transform: translate(-1px, -1px); box-shadow: var(--shadow); }
+.header-exit-btn:active { transform: translate(3px, 3px); box-shadow: none; }
+@media (max-width: 480px) { .header-exit-btn span { display: none; } .header-exit-btn { width: 44px; padding: 0; justify-content: center; } }
 .avatar-circle { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--on-accent); }
 
 .bottom-nav { display: none; }
@@ -542,7 +551,7 @@ input[type='number'] { -moz-appearance: textfield; }
 
 .play-card-container {
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   gap: 28px;
   align-items: stretch;
 }
@@ -869,6 +878,10 @@ input[type='number'] { -moz-appearance: textfield; }
 .modal-title { font-size: 22px; color: var(--on-accent); }
 .modal-close-btn { display: grid; place-items: center; width: 36px; height: 36px; background: #fff; color: #111; border: var(--bw-thin) solid #111; border-radius: var(--radius); }
 .modal-body { padding: 20px; }
+.exit-confirm-text { margin-bottom: 20px; color: var(--text-secondary); line-height: 1.5; }
+.exit-confirm-actions { display: flex; gap: 12px; }
+.exit-confirm-actions > button { flex: 1; justify-content: center; min-height: 52px; padding: 12px 18px; font-size: 16px; }
+@media (max-width: 480px) { .exit-confirm-actions { flex-direction: column-reverse; } }
 
 /* ==========================================================================
    Responsive
@@ -889,7 +902,7 @@ input[type='number'] { -moz-appearance: textfield; }
 }
 
 @media (max-width: 760px) {
-  .app-header { top: 10px; margin: 10px 16px 22px; gap: 10px; padding: 8px 8px 8px 10px; }
+  .app-header { top: 10px; margin: 10px 16px 36px; gap: 10px; padding: 8px 8px 8px 10px; }
   .desktop-nav { display: none; }
   .header-actions { margin-left: auto; }
   .brand-mark { width: 38px; height: 38px; font-size: 20px; }
@@ -904,7 +917,7 @@ input[type='number'] { -moz-appearance: textfield; }
   .hero-stats strong { font-size: 28px; }
   .hero-stats span { font-size: 10px; }
 
-  .play-card-container { grid-template-columns: 1fr; gap: 22px; }
+  .play-card-container { grid-template-columns: minmax(0, 1fr); gap: 22px; }
   .item-image-wrapper { height: 260px; }
   .item-details { padding: 18px 20px 22px; }
   .item-description { font-size: 15px; }
@@ -1006,6 +1019,8 @@ input[type='number'] { -moz-appearance: textfield; }
 .daily-tiles { display: flex; gap: 8px; font-size: 34px; }
 .daily-tiles span { display: flex; flex-direction: column; align-items: center; }
 .daily-tiles small { font-family: var(--font-mono); font-size: 11px; }
+.daily-tile { display: block; width: 36px; height: 36px; margin-bottom: 4px; border: var(--bw-thin) solid var(--ink); border-radius: 6px; }
+.daily-tile-great { background: #4caf50; } .daily-tile-good { background: #f2c94c; } .daily-tile-fair { background: #f2994a; } .daily-tile-miss { background: #333; }
 .daily-streak { font-family: var(--font-mono); }
 .style-card { background: var(--lilac); margin-bottom: 20px; }
 .end-cards .style-card { margin-bottom: 0; }
@@ -1019,8 +1034,9 @@ input[type='number'] { -moz-appearance: textfield; }
   background-image: radial-gradient(rgba(17,17,17,.12) 1.6px, transparent 1.6px); background-size: 18px 18px;
 }
 .item-illustration span {
-  font-size: clamp(120px, 14vw, 200px); line-height: 1;
-  filter: drop-shadow(6px 6px 0 rgba(17,17,17,.85));
+  max-width: 80%; padding: 18px 22px; text-align: center;
+  font-family: var(--font-display, inherit); font-size: clamp(22px, 3vw, 34px); font-weight: 800; line-height: 1.15; color: #111;
+  background: #fff; border: var(--bw-thin) solid var(--ink); border-radius: var(--radius); box-shadow: 6px 6px 0 rgba(17,17,17,.85);
   animation: item-pop .5s cubic-bezier(.2,.8,.2,1.4);
 }
 @keyframes item-pop { from { transform: scale(.6) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }

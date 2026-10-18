@@ -1,5 +1,6 @@
 import { EXPANDED_PRODUCTS } from './catalogExpansion.js';
 import { MORE_PRODUCTS } from './catalogMore.js';
+import { imageFor } from './productImages.js';
 
 const ORIGINAL_EMOJI = { prod_1: '🎧', prod_2: '🩱', prod_3: '💨', prod_4: '🧼', prod_5: '💻', prod_6: '⌨️', prod_7: '☕', prod_8: '👟' };
 
@@ -110,8 +111,9 @@ const ORIGINAL_PRODUCTS = [
   }
 ];
 
-export const PRODUCTS = [...ORIGINAL_PRODUCTS.map(p => ({ ...p, emoji: ORIGINAL_EMOJI[p.id], imageUrl: p.id === 'prod_4' ? null : p.imageUrl })), ...EXPANDED_PRODUCTS, ...MORE_PRODUCTS].map(({ cohortInsights: _unused, ...product }) => ({
+export const PRODUCTS = [...ORIGINAL_PRODUCTS.map(p => ({ ...p, emoji: ORIGINAL_EMOJI[p.id] })), ...EXPANDED_PRODUCTS, ...MORE_PRODUCTS].map(({ cohortInsights: _unused, ...product }) => ({
   ...product,
+  imageUrl: imageFor(product.id),
   currency: 'SGD',
   benchmarkStatus: 'demo',
   benchmarkSource: null,

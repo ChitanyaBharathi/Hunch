@@ -54,7 +54,7 @@ function ProductEvidence({ p, personas }) {
   </section>;
 }
 
-export function ReportView({ report, title, subtitle, actions, scope = 'study' }) {
+export function ReportView({ report, title, subtitle, actions, assistant, scope = 'study' }) {
   const published = report.products.filter(p => !p.suppressed);
   const branded = published.filter(p => p.brand && !p.brand.suppressed).sort((a, b) => b.brand.premiumPct - a.brand.premiumPct);
   const { anchoring, personas, sample, methodology } = report;
@@ -67,6 +67,8 @@ export function ReportView({ report, title, subtitle, actions, scope = 'study' }
       {sample.includesSyntheticData && <p className="hi-banner" role="note"><strong>Includes synthetic demo data.</strong> Seeded respondents with planted patterns, for demonstration only. Remove with <code>npm run seed:remove</code>.</p>}
       {actions && <div className="hi-actions">{actions}</div>}
     </header>
+
+    {assistant}
 
     <section className="hi-section"><h2><span>1</span>Headlines</h2>
       <div className="hi-headlines">{report.products.map(p => <Headline key={p.id} p={p} />)}</div>

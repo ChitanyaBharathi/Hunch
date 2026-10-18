@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { PRODUCTS } from '../server/products.js';
 import { selectProducts, ROUNDS_PER_GAME } from '../server/roundSelection.js';
 import { createRoom } from '../server/game.js';
@@ -15,7 +16,7 @@ test('seed catalog covers nine categories, every item has a picture, and benchma
   for (const p of PRODUCTS) {
     assert.ok(Number.isFinite(p.price) && p.price > 0);
     assert.ok(p.title && p.description && p.emoji);
-    if (p.imageUrl) assert.ok(new URL(p.imageUrl));
+    if (p.imageUrl) assert.ok(existsSync(new URL(`../public${p.imageUrl}`, import.meta.url)), `missing photo for ${p.id}`);
     assert.equal(p.currency, 'SGD');
     assert.equal(p.cohortInsights, undefined);
   }

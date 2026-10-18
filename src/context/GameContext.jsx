@@ -16,6 +16,10 @@ const readKey = () => { try { return localStorage.getItem(KEY_STORE); } catch { 
 const keepKey = data => { if (data?.respondentKey) try { localStorage.setItem(KEY_STORE, data.respondentKey); } catch { /* new identity next game */ } };
 const withResearch = body => (body.researchConsent ? { ...body, ageConfirmed: true, respondentKey: readKey() ?? undefined } : body);
 
+const forget = code => {
+  try { const remembered = JSON.parse(localStorage.getItem('hunch_sessions_v1')) || {}; delete remembered[code]; localStorage.setItem('hunch_sessions_v1', JSON.stringify(remembered)); } catch { /* No saved session to remove. */ }
+};
+
 export function GameProvider({ children }) {
   const [session, setSession] = useState(() => {
     try {
@@ -48,7 +52,8 @@ export function GameProvider({ children }) {
         const response = await fetch(`/api/rooms/${session.code}`, { headers: { Authorization: `Bearer ${session.token}` }, signal: AbortSignal.timeout(6000) });
         const data = await response.json();
         if (cancelled || startedAt !== generation.current) return;
-        if (response.status === 401 || response.status === 404) { setSession(null); setRoom(null); setError(data.error); return; }
+        // 410: the host ended the game, so everyone goes home.
+        if (response.status === 401 || response.status === 404 || response.status === 410) { forget(session.code); setSession(null); setRoom(null); setError(data.error); return; }
         if (!response.ok) throw new Error(data.error);
         setRoom(data); setConnected(true);
       } catch { if (!cancelled) setConnected(false); }
@@ -89,9 +94,11 @@ export function GameProvider({ children }) {
     finally { setBusy(false); }
   };
   const leaveRoom = () => {
-    try { const remembered = JSON.parse(localStorage.getItem('hunch_sessions_v1')) || {}; delete remembered[session.code]; localStorage.setItem('hunch_sessions_v1', JSON.stringify(remembered)); } catch { /* No saved session to remove. */ }
+    forget(session.code);
     generation.current += 1; setSession(null); setRoom(null); setError(''); setConnected(false);
   };
-  return <GameContext.Provider value={{ room, session, busy, error, connected, enterRoom, act, leaveRoom, clearError: () => setError('') }}>{children}</GameContext.Provider>;
+  // The host leaving a party game ends it for everyone; their apps notice on the next refresh.
+  const endRoom = async () => (await act('end')) && (leaveRoom(), true);
+  return <GameContext.Provider value={{ room, session, busy, error, connected, enterRoom, act, leaveRoom, endRoom, clearError: () => setError('') }}>{children}</GameContext.Provider>;
 }
 export function useGame() { return useContext(GameContext); }

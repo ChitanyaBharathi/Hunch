@@ -7,7 +7,7 @@ const joinLimit = rateLimiter({ limit: 30, windowMs: 60_000 });
 const research = body => ({ researchConsent: body.researchConsent, ageConfirmed: body.ageConfirmed, respondentKey: body.respondentKey });
 
 export async function roomRoutes(db, req, res, path) {
-  const match = path.match(/^\/api\/rooms(?:\/([A-Z0-9]{6})(?:\/(join|start|guess|reveal|next|consent|profile|insights|insights\.csv))?)?$/i);
+  const match = path.match(/^\/api\/rooms(?:\/([A-Z0-9]{6})(?:\/(join|start|guess|reveal|next|end|consent|profile|insights|insights\.csv))?)?$/i);
   if (!match) return false;
   const [, code, action] = match;
   if (req.method === 'POST' && !code) {
